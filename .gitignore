@@ -1,0 +1,21 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# --- Node ---
+node_modules/
+frontend/dist/
+
+# --- SQLite ---
+*.db
+*.db-journal
+*.sqlite3
+
+# --- Env / editors ---
+.env
+.idea/
+.vscode/

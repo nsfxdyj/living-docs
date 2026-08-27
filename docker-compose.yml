@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist the SQLite database file across container restarts.
+      - living-docs-data:/data
+
+volumes:
+  living-docs-data:
