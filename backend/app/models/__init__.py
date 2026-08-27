@@ -63,6 +63,8 @@ class Document(Base):
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("documents.id"), nullable=True)
     title: Mapped[str]
     content_md: Mapped[str] = mapped_column(default="")
+    # JSON-encoded list of tag strings (kept as text; no FTS in the MVP).
+    tags: Mapped[str] = mapped_column(default="[]")
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     vitality: Mapped[float] = mapped_column(default=0.0)
     status: Mapped[str] = mapped_column(default="thriving")  # thriving|stable|fading|withered

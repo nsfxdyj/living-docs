@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from . import models  # noqa: F401  (register ORM models on the metadata)
-from .api import auth, health, workspaces
+from .api import attachments, auth, documents, health, workspaces
 from .config import get_settings
 from .db import Base, engine
 
@@ -24,6 +24,8 @@ app = FastAPI(title="Living Docs", lifespan=lifespan)
 app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(workspaces.router, prefix="/api")
+app.include_router(documents.router, prefix="/api")
+app.include_router(attachments.router, prefix="/api")
 
 # Serve the built frontend (Vite output) when it is available, e.g. in Docker.
 _static_dir = Path(get_settings().static_dir)

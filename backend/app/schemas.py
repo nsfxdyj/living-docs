@@ -58,3 +58,33 @@ class InviteOut(BaseModel):
 
 class JoinRequest(BaseModel):
     token: str
+
+
+class DocumentCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    content_md: str = ""
+    tags: list[str] = Field(default_factory=list)
+
+
+class DocumentUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    content_md: str | None = None
+    tags: list[str] | None = None
+
+
+class DocumentOut(BaseModel):
+    id: int
+    workspace_id: int
+    parent_id: int | None
+    title: str
+    content_md: str
+    tags: list[str]
+    author_id: int
+    vitality: float
+    status: str
+    last_interaction_at: datetime
+    created_at: datetime
+
+
+class AttachmentOut(BaseModel):
+    url: str

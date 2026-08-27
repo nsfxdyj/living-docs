@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     static_dir: str = "static"
     # JWT signing key; override via LIVING_DOCS_SECRET_KEY in production.
     secret_key: str = "dev-only-secret-change-me"
+    # Where uploaded image attachments are stored on disk.
+    attachments_dir: str = "data/attachments"
+    # Maximum size of a single uploaded attachment.
+    max_upload_bytes: int = 2 * 1024 * 1024  # 2 MB
 
 
 @lru_cache
