@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 
 import { api } from '../api/client'
 import type { GardenEntry, Workspace } from '../api/types'
+import CountUp from '../components/CountUp.vue'
+import { useReveal } from '../composables/useReveal'
 import {
   LIFE_STATUSES,
   lifeStatus,
@@ -21,21 +23,17 @@ const entries = ref<GardenEntry[]>([])
 const loading = ref(true)
 const error = ref('')
 
+// Reveal-on-scroll root (plants grow in with a stagger once fetched).
+const root = ref<HTMLElement | null>(null)
+useReveal(root)
+
 const legend = LIFE_STATUSES.map((status) => ({ status, ...statusMeta(status) }))
 
 const plants = computed(() =>
   entries.value.map((entry) => {
     const status = lifeStatus(entry.status)
     const meta = statusMeta(entry.status)
-    return {
-      entry,
-      status,
-      meta,
-      size: plantSize(entry.vitality),
-      tooltip: `${entry.title}\n⚡ ${Math.round(entry.vitality)} vitality — ${meta.label}\nLast interaction: ${new Date(
-        entry.last_interaction_at,
-      ).toLocaleString()}\nby ${entry.author.display_name}`,
-    }
+    return { entry, status, meta, size: plantSize(entry.vitality) }
   }),
 )
 
@@ -56,7 +54,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="garden">
+  <main ref="root" class="garden">
     <p v-if="loading">Loading…</p>
     <template v-else>
       <header class="topbar">
@@ -74,7 +72,12 @@ onMounted(async () => {
       <p v-if="error" class="error">{{ error }}</p>
 
       <ul class="legend">
-        <li v-for="item in legend" :key="item.status">
+        <li
+          v-for="(item, i) in legend"
+          :key="item.status"
+          class="reveal"
+          :data-stagger="i"
+        >
           <span
             class="badge"
             :style="{ color: item.color, background: item.background }"
@@ -89,12 +92,14 @@ onMounted(async () => {
 
       <div class="bed">
         <router-link
-          v-for="plant in plants"
+          v-for="(plant, i) in plants"
           :key="plant.entry.id"
           :to="`/docs/${plant.entry.id}`"
-          class="plant"
+          class="plant reveal"
           :class="`plant-${plant.status}`"
-          :title="plant.tooltip"
+          :data-stagger="Math.min(i, 10)"
+          :style="{ '--i': i }"
+          :aria-describedby="`plant-tip-${plant.entry.id}`"
         >
           <svg
             :width="plant.size"
@@ -149,9 +154,23 @@ onMounted(async () => {
             :style="{ color: plant.meta.color, background: plant.meta.background }"
             >{{ plant.meta.label }}</span
           >
-          <span class="plant-vitality">⚡ {{ Math.round(plant.entry.vitality) }}</span>
+          <span class="plant-vitality">
+            ⚡ <CountUp :value="plant.entry.vitality" />
+          </span>
           <span class="plant-updated">
             {{ formatDate(plant.entry.last_interaction_at) }}
+          </span>
+          <span class="tip" :id="`plant-tip-${plant.entry.id}`">
+            <strong>{{ plant.entry.title }}</strong>
+            <span>
+              ⚡ {{ Math.round(plant.entry.vitality) }} vitality —
+              {{ plant.meta.label }}
+            </span>
+            <span>
+              Last interaction:
+              {{ formatDate(plant.entry.last_interaction_at) }}
+            </span>
+            <span>by {{ plant.entry.author.display_name }}</span>
           </span>
         </router-link>
       </div>
@@ -217,6 +236,7 @@ onMounted(async () => {
 }
 
 .plant {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -226,18 +246,98 @@ onMounted(async () => {
   text-decoration: none;
   color: inherit;
   text-align: center;
+  /* 450ms (--dur-med) instead of the default 700ms reveal is
+   * intentional: the grow-in should feel snappy, not slow-motion.
+   * The hover shadow is pre-rendered on ::after (opacity-faded below);
+   * box-shadow itself is never transitioned. */
+  transition:
+    transform var(--dur-med) var(--ease-spring),
+    opacity var(--dur-med) var(--ease-spring),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.plant::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(35, 80, 50, 0.16);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+}
+
+.plant:hover::after {
+  opacity: 1;
+}
+
+/* Grow-in: each plant springs up from the ground (one-shot, staggered).
+ * Overrides the global translateY reveal with a bottom-anchored scale. */
+.plant.reveal {
+  transform: scaleY(0);
+  transform-origin: 50% 100%;
+}
+
+.plant.reveal.revealed {
+  transform: none;
+}
+
+.plant.reveal.revealed:hover {
+  transform: scale(1.06);
 }
 
 .plant:hover {
   background: rgba(47, 143, 78, 0.08);
 }
 
-.plant svg {
-  transition: transform 0.15s ease;
+/* Idle sway: living plants move gently, offset per plant via --i so the
+ * bed does not swing in lockstep. Withered plants stay perfectly still
+ * (dead things don't sway). */
+.plant-thriving svg,
+.plant-stable svg,
+.plant-fading svg {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation-delay: calc(var(--i, 0) * -0.7s);
 }
 
-.plant:hover svg {
-  transform: scale(1.06);
+.plant-thriving svg {
+  animation: sway 4s ease-in-out infinite alternate;
+}
+
+.plant-stable svg {
+  animation: sway-soft 5s ease-in-out infinite alternate;
+}
+
+.plant-fading svg {
+  animation: sway-faint 6.5s ease-in-out infinite alternate;
+}
+
+@keyframes sway {
+  from {
+    transform: rotate(-1.5deg);
+  }
+  to {
+    transform: rotate(1.5deg);
+  }
+}
+
+@keyframes sway-soft {
+  from {
+    transform: rotate(-0.8deg);
+  }
+  to {
+    transform: rotate(0.8deg);
+  }
+}
+
+@keyframes sway-faint {
+  from {
+    transform: rotate(-0.5deg);
+  }
+  to {
+    transform: rotate(0.5deg);
+  }
 }
 
 /* Withered plants droop and fade. */
@@ -247,8 +347,39 @@ onMounted(async () => {
   filter: grayscale(0.6);
 }
 
-.plant-withered:hover svg {
-  transform: rotate(10deg) scale(1.06);
+/* Floating tooltip card (replaces the native title attribute).
+ * Width is clamped to 72vw so it never overflows the viewport on narrow
+ * screens (a centered tooltip wider than that could stick out on
+ * single-column layouts). */
+.tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  width: max-content;
+  max-width: min(12rem, 72vw);
+  display: grid;
+  gap: 2px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(28, 30, 33, 0.92);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.plant:hover .tip,
+.plant:focus-visible .tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .plant-title {
