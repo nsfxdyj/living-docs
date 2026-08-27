@@ -12,6 +12,8 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./living_docs.db"
     static_dir: str = "static"
+    # JWT signing key; override via LIVING_DOCS_SECRET_KEY in production.
+    secret_key: str = "dev-only-secret-change-me"
 
 
 @lru_cache
