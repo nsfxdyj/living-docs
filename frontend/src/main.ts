@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import { router } from './router'
+import './assets/theme.css'
 import './assets/motion.css'
 
 // Gates the `.reveal` initial hidden state: without JS, content stays visible.

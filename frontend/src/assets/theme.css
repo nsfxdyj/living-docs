@@ -1,0 +1,45 @@
+/* Global theme — "paper and morning light".
+ *
+ * Living Docs treats documents as living things, and living things grow on
+ * paper. The background is a sheet of warm handmade paper touched by early
+ * morning light: a quiet nod to centuries of human writing, on which the
+ * document garden now grows.
+ *
+ * Everything here is static (fixed gradients + one tiny inline SVG grain),
+ * so there is zero animation cost and nothing to disable for
+ * prefers-reduced-motion.
+ */
+
+body {
+  margin: 0;
+  /* Warm ivory base falling away to a deeper parchment tone at the edges,
+     like a page under soft directional light. */
+  background-color: #faf7f0;
+  background-image:
+    /* morning light falling from the top of the page */
+    radial-gradient(120% 60% at 50% -10%, rgba(255, 214, 150, 0.35), rgba(255, 214, 150, 0) 60%),
+    /* faint cool shade at the bottom so the page has depth */
+    radial-gradient(120% 50% at 50% 115%, rgba(120, 110, 80, 0.10), rgba(120, 110, 80, 0) 55%),
+    /* the paper itself */
+    linear-gradient(175deg, #fbf9f3 0%, #f7f3e9 45%, #f2eddf 100%);
+  background-attachment: fixed;
+}
+
+/* Handmade-paper grain: fractal noise at very low opacity, multiplied onto
+   the page so it reads as fiber, not as a pattern. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+}
+
+/* Keep app content above the grain layer. */
+#app {
+  position: relative;
+  z-index: 1;
+}
