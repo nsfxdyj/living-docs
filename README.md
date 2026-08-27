@@ -63,12 +63,12 @@ The repo ships a [Render Blueprint](https://render.com/docs/blueprint-spec) (`re
 
 1. Push this repository to GitHub.
 2. In the Render dashboard: **New → Blueprint**, select the repo, apply.
-3. Render builds the root `Dockerfile`, generates `LIVING_DOCS_SECRET_KEY`, and mounts a 1 GB disk at `/data` holding both the SQLite database and uploaded attachments.
+3. Render builds the root `Dockerfile` and generates `LIVING_DOCS_SECRET_KEY` automatically.
 
 Free-tier caveats:
 
 - **Cold starts** — free web services spin down after inactivity; the first request after idle can take ~30–60 s.
-- **Disk persistence** — Render disks on free services persist normally, but they are tied to the service; deleting the service deletes the data. Treat the demo as ephemeral (don't use the free tier for data you care about), and note that free PostgreSQL is *not* used here — everything lives on the `/data` disk.
+- **Ephemeral data** — free services cannot attach disks, so the SQLite database and uploaded attachments live on the container filesystem (`/tmp`) and **reset on every deploy or restart**. Fine for a public demo; for a persistent instance use a paid plan and add a disk mounted at `/data`, then point `LIVING_DOCS_DATABASE_URL` / `LIVING_DOCS_ATTACHMENTS_DIR` there.
 
 ## Local development
 

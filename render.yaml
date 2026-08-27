@@ -1,5 +1,10 @@
 # Render Blueprint: one-click deploy of Living Docs as a single web service.
 # The root Dockerfile builds the frontend and serves it from the backend.
+#
+# Free tier note: disks are not supported on the free plan, so SQLite and
+# uploads live on the ephemeral filesystem — data resets on every deploy or
+# restart. That is acceptable for a public demo; for a persistent instance,
+# switch to a paid plan and re-add a disk mounted at /data.
 services:
   - type: web
     name: living-docs
@@ -10,13 +15,8 @@ services:
       # JWT signing key, generated once by Render on first deploy.
       - key: LIVING_DOCS_SECRET_KEY
         generateValue: true
-      # SQLite lives on the mounted disk (see below).
+      # Ephemeral storage inside the container (see note above).
       - key: LIVING_DOCS_DATABASE_URL
-        value: sqlite:////data/living_docs.db
-      # Uploaded attachments go on the same disk.
+        value: sqlite:////tmp/living_docs.db
       - key: LIVING_DOCS_ATTACHMENTS_DIR
-        value: /data/attachments
-    disk:
-      name: living-docs-data
-      mountPath: /data
-      sizeGB: 1
+        value: /tmp/attachments
