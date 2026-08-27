@@ -2,17 +2,17 @@
 
 > An open-source, async-first knowledge base for small teams where documents are **alive**: they grow when people interact with them, fork into variants that evolve on their own, and wither away when forgotten.
 
-<!-- Badges: wire these up once the repo is public.
-[![CI](https://github.com/YOUR_ORG/living-docs/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_ORG/living-docs/actions/workflows/ci.yml)
--->
+[![CI](https://github.com/nsfxdyj/living-docs/actions/workflows/ci.yml/badge.svg)](https://github.com/nsfxdyj/living-docs/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+
+**[Live demo → living-docs.onrender.com](https://living-docs.onrender.com)** *(free tier: cold start ~30–60 s, data resets on redeploy)*
 
 Existing knowledge bases treat documents as static files — written once, then left to rot. **Living Docs** turns every document into a living organism whose health reflects how much your team actually cares about it.
 
 ## Core concepts
 
 - **Life System** — every document has a `vitality` score charged by interactions (view = +1, comment = +5, edit = +8, fork = +10) and decayed daily. Documents move through `thriving → stable → fading → withered`; withered documents sink to the bottom and fade to grey, and can be revived by fresh interaction. The team home page is a *document garden* that shows at a glance which knowledge is alive and which is dead.
-- **Fork & Merge** *(planned, milestone M5)* — any document can be forked into a variant that evolves independently; the stronger variant can later be merged back into the trunk, natural-selection style, with an evolution tree visualizing every descendant.
+- **Fork & Merge** — any document can be forked into a variant that evolves independently; the stronger variant can later be merged back into the trunk, natural-selection style, with an evolution tree visualizing every descendant.
 
 ## Features
 
@@ -37,15 +37,15 @@ Existing knowledge bases treat documents as static files — written once, then 
 
 **The document garden** — every document is a plant: size and color reflect vitality, withered documents gray out.
 
-![Document garden](docs/screenshots/garden.png)
+![Document garden](docs/screenshots/garden.jpg)
 
 **Document view** — life status badge, vitality counter, tags and the comment section that charges the document.
 
-![Document view](docs/screenshots/document.png)
+![Document view](docs/screenshots/document.jpg)
 
 **Evolution tree** — forks form a tree of variants; node color = life status, size = vitality.
 
-![Evolution tree](docs/screenshots/evolution-tree.png)
+![Evolution tree](docs/screenshots/evolution-tree.jpg)
 
 ## Quick start (Docker)
 
