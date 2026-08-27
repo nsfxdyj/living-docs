@@ -35,8 +35,17 @@ Existing knowledge bases treat documents as static files — written once, then 
 
 ## Screenshots
 
-<!-- TODO: add screenshots / GIF once the demo is deployed -->
-_Coming soon — the document garden, editor and evolution tree._
+**The document garden** — every document is a plant: size and color reflect vitality, withered documents gray out.
+
+![Document garden](docs/screenshots/garden.png)
+
+**Document view** — life status badge, vitality counter, tags and the comment section that charges the document.
+
+![Document view](docs/screenshots/document.png)
+
+**Evolution tree** — forks form a tree of variants; node color = life status, size = vitality.
+
+![Evolution tree](docs/screenshots/evolution-tree.png)
 
 ## Quick start (Docker)
 
