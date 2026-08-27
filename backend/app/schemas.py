@@ -116,6 +116,27 @@ class MergeRequestOut(BaseModel):
     decided_at: datetime | None
 
 
+class CommentCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
+
+
+class CommentOut(BaseModel):
+    id: int
+    document_id: int
+    author: UserOut
+    body: str
+    created_at: datetime
+
+
+class NotificationOut(BaseModel):
+    id: int
+    workspace_id: int
+    kind: str
+    payload: dict
+    read: bool
+    created_at: datetime
+
+
 class TreeNode(BaseModel):
     """One node of a document's evolution tree (M5)."""
 

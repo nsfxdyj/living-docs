@@ -116,3 +116,17 @@ class Attachment(Base):
     document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), index=True)
     path: Mapped[str]
     uploader_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+
+class Notification(Base):
+    """An in-app notification (M6); ``payload`` is a JSON-encoded dict."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"))
+    kind: Mapped[str]  # comment | merge_request | merge_accepted | merge_rejected
+    payload: Mapped[str] = mapped_column(default="{}")
+    read: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
