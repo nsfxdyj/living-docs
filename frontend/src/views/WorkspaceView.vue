@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 
 import { api } from '../api/client'
 import type { Document, WorkspaceDetail } from '../api/types'
+import { badgeStyle } from '../utils/life'
 
 // Workspace home: member list summary plus the searchable document list.
 const route = useRoute()
@@ -61,9 +62,14 @@ function formatDate(iso: string): string {
           <router-link to="/" class="back">← All workspaces</router-link>
           <h1>{{ workspace?.name ?? 'Workspace' }}</h1>
         </div>
-        <router-link :to="`/w/${workspaceId}/docs/new`" class="new-doc">
-          + New document
-        </router-link>
+        <div class="actions">
+          <router-link :to="`/w/${workspaceId}/garden`" class="garden-link">
+            🌿 Garden
+          </router-link>
+          <router-link :to="`/w/${workspaceId}/docs/new`" class="new-doc">
+            + New document
+          </router-link>
+        </div>
       </header>
 
       <p v-if="error" class="error">{{ error }}</p>
@@ -92,7 +98,7 @@ function formatDate(iso: string): string {
             {{ doc.title }}
           </router-link>
           <div class="doc-meta">
-            <span class="badge" :class="`status-${doc.status}`">{{
+            <span class="badge" :style="badgeStyle(doc.status)">{{
               doc.status
             }}</span>
             <span class="vitality">⚡ {{ vitalityLabel(doc) }}</span>
@@ -123,6 +129,21 @@ function formatDate(iso: string): string {
 
 .back {
   font-size: 0.9rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.garden-link {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid #2f8f4e;
+  color: #2f8f4e;
+  border-radius: 6px;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .new-doc {
@@ -195,26 +216,6 @@ function formatDate(iso: string): string {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.status-thriving {
-  background: #d9f2e3;
-  color: #1d6b3c;
-}
-
-.status-stable {
-  background: #e3ecfb;
-  color: #2c5aa0;
-}
-
-.status-fading {
-  background: #fbf0d4;
-  color: #8a6d1d;
-}
-
-.status-withered {
-  background: #e4e4e4;
-  color: #666;
 }
 
 .tag {

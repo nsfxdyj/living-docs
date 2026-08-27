@@ -53,3 +53,13 @@ export interface Document {
 export interface AttachmentUpload {
   url: string
 }
+
+export interface GardenEntry {
+  id: number
+  title: string
+  vitality: number
+  status: string
+  tags: string[]
+  last_interaction_at: string
+  author: User
+}

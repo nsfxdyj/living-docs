@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 
 import { api } from '../api/client'
 import type { Document } from '../api/types'
+import { badgeStyle } from '../utils/life'
 import { renderMarkdown } from '../utils/markdown'
 
 // Read-only rendered view of a single document.
@@ -45,7 +46,7 @@ onMounted(async () => {
           </router-link>
           <h1>{{ doc.title }}</h1>
           <div class="meta">
-            <span class="badge" :class="`status-${doc.status}`">{{
+            <span class="badge" :style="badgeStyle(doc.status)">{{
               doc.status
             }}</span>
             <span class="vitality">⚡ {{ Math.round(doc.vitality) }} vitality</span>
@@ -108,26 +109,6 @@ onMounted(async () => {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.status-thriving {
-  background: #d9f2e3;
-  color: #1d6b3c;
-}
-
-.status-stable {
-  background: #e3ecfb;
-  color: #2c5aa0;
-}
-
-.status-fading {
-  background: #fbf0d4;
-  color: #8a6d1d;
-}
-
-.status-withered {
-  background: #e4e4e4;
-  color: #666;
 }
 
 .tag {
