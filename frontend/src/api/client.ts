@@ -26,8 +26,22 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   body?: unknown
+}
+
+async function checkResponse(response: Response): Promise<void> {
+  if (response.ok) return
+  let detail = response.statusText
+  try {
+    const data = (await response.json()) as { detail?: unknown }
+    if (typeof data.detail === 'string') {
+      detail = data.detail
+    }
+  } catch {
+    // Non-JSON error body: keep the HTTP status text.
+  }
+  throw new ApiError(response.status, detail)
 }
 
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -41,17 +55,28 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   })
-  if (!response.ok) {
-    let detail = response.statusText
-    try {
-      const data = (await response.json()) as { detail?: unknown }
-      if (typeof data.detail === 'string') {
-        detail = data.detail
-      }
-    } catch {
-      // Non-JSON error body: keep the HTTP status text.
-    }
-    throw new ApiError(response.status, detail)
+  await checkResponse(response)
+  if (response.status === 204) {
+    return undefined as T
   }
+  return (await response.json()) as T
+}
+
+// Multipart upload (file attachments). The browser sets the Content-Type
+// boundary itself, so we must not set a Content-Type header here.
+export async function apiUpload<T>(path: string, file: File): Promise<T> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token !== null) {
+    headers.Authorization = `Bearer ${token}`
+  }
+  const form = new FormData()
+  form.append('file', file)
+  const response = await fetch(`/api${path}`, {
+    method: 'POST',
+    headers,
+    body: form,
+  })
+  await checkResponse(response)
   return (await response.json()) as T
 }

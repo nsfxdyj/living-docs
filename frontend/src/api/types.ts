@@ -35,3 +35,21 @@ export interface Invite {
   url: string
   expires_at: string
 }
+
+export interface Document {
+  id: number
+  workspace_id: number
+  parent_id: number | null
+  title: string
+  content_md: string
+  tags: string[]
+  author_id: number
+  vitality: number
+  status: string
+  last_interaction_at: string
+  created_at: string
+}
+
+export interface AttachmentUpload {
+  url: string
+}
