@@ -15,6 +15,7 @@ from ..db import get_db
 from ..life import record_interaction
 from ..models import Attachment, Comment, Document, Interaction, Membership, MergeRequest, User
 from ..schemas import DocumentCreate, DocumentOut, DocumentUpdate
+from ..search import index_document, remove_document
 from .deps import get_current_user
 
 router = APIRouter(tags=["documents"])
@@ -80,6 +81,8 @@ def create_document(
         author_id=user.id,
     )
     db.add(document)
+    db.flush()  # assign document.id for the FTS row
+    index_document(db, document)
     db.commit()
     return document_out(document)
 
@@ -145,6 +148,7 @@ def update_document(
     if payload.tags is not None:
         document.tags = json.dumps(payload.tags)
     record_interaction(db, document, user.id, "edit")
+    index_document(db, document)
     db.commit()
     return document_out(document)
 
@@ -186,5 +190,6 @@ def delete_document(
         ).all():
             db.delete(row)
     db.delete(document)
+    remove_document(db, document.id)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

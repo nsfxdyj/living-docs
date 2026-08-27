@@ -10,10 +10,11 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import models  # noqa: F401  (register ORM models on the metadata)
-from .api import attachments, auth, comments, documents, evolution, health, notifications, workspaces
+from .api import attachments, auth, comments, documents, evolution, health, notifications, search, workspaces
 from .config import get_settings
 from .db import Base, SessionLocal, engine
 from .life import run_decay
+from .search import probe_fts5, rebuild_index_if_stale
 
 
 def _decay_job() -> None:
@@ -26,6 +27,12 @@ def _decay_job() -> None:
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # M1: create tables directly; Alembic migrations come in a later milestone.
     Base.metadata.create_all(bind=engine)
+    # FTS5 full-text index: probe support once (search degrades to 503 and
+    # indexing to warnings if the build lacks FTS5), then rebuild the index
+    # if it disagrees with the documents table (legacy rows, tokenizer change).
+    with SessionLocal() as session:
+        if probe_fts5(session):
+            rebuild_index_if_stale(session)
     # M4: background vitality decay (default: every 24h, factor 0.95).
     settings = get_settings()
     scheduler = BackgroundScheduler(daemon=True)
@@ -51,6 +58,7 @@ app.include_router(evolution.router, prefix="/api")
 app.include_router(comments.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(attachments.router, prefix="/api")
+app.include_router(search.router, prefix="/api")
 
 # Serve the built frontend (Vite output) when it is available, e.g. in Docker.
 # SPA fallback: unknown non-/api paths return index.html so deep links like

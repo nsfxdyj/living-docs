@@ -28,6 +28,7 @@ from ..schemas import (
     TreeNode,
     UserOut,
 )
+from ..search import index_document
 from .deps import get_current_user
 from .documents import document_out, get_accessible_document, require_membership
 
@@ -190,6 +191,8 @@ def fork_document(
     db.add(fork)
     # Being forked is a signal of value: charge the SOURCE document.
     record_interaction(db, source, user.id, "fork")
+    db.flush()  # assign fork.id for the FTS row
+    index_document(db, fork)
     db.commit()
     return document_out(fork)
 
@@ -350,6 +353,9 @@ def accept_merge_request(
     mr.status = "accepted"
     mr.decided_at = datetime.utcnow()
     _notify_merge_decision(db, mr, target, user, "merge_accepted")
+    # The target's content changed; the merged source stays indexed but is
+    # excluded from search results by its status.
+    index_document(db, target)
     db.commit()
     return _merge_request_out(mr)
 

@@ -2,13 +2,24 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
     email: str
     password: str = Field(min_length=8)
-    display_name: str = Field(min_length=1, max_length=80)
+    display_name: str = Field(min_length=1, max_length=40)
+
+    @field_validator("display_name")
+    @classmethod
+    def display_name_is_mention_safe(cls, value: str) -> str:
+        # display_name doubles as the @mention handle: '@' would break
+        # mention parsing and control characters could smuggle markup.
+        if "@" in value or any(ch.isprintable() is False for ch in value):
+            raise ValueError(
+                "display_name must not contain '@' or control characters"
+            )
+        return value
 
 
 class LoginRequest(BaseModel):
@@ -84,6 +95,22 @@ class DocumentOut(BaseModel):
     status: str
     last_interaction_at: datetime
     created_at: datetime
+
+
+class SearchResultOut(BaseModel):
+    """One full-text search hit.
+
+    ``snippet`` uses \\x00/\\x01 as highlight markers (never literal ``<b>``,
+    so document text cannot forge highlights); clients escape HTML and map
+    the markers to ``<b>``/``</b>`` tags. Empty in LIKE-fallback mode.
+    """
+
+    id: int
+    title: str
+    snippet: str
+    vitality: float
+    status: str
+    rank: float
 
 
 class AttachmentOut(BaseModel):
