@@ -7,6 +7,7 @@ from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import models  # noqa: F401  (register ORM models on the metadata)
 from .api import attachments, auth, comments, documents, evolution, health, notifications, workspaces
@@ -52,6 +53,24 @@ app.include_router(notifications.router, prefix="/api")
 app.include_router(attachments.router, prefix="/api")
 
 # Serve the built frontend (Vite output) when it is available, e.g. in Docker.
+# SPA fallback: unknown non-/api paths return index.html so deep links like
+# /login or /docs/3 survive a full page reload.
+class SPAStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):  # type: ignore[no-untyped-def]
+        # Starlette raises HTTPException(404) for missing paths (fastapi's
+        # HTTPException is a subclass, so catching it would NOT work).
+        try:
+            response = await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            return await super().get_response("index.html", scope)
+        if response.status_code == 404:
+            # Not a real asset — hand the path to the SPA router.
+            return await super().get_response("index.html", scope)
+        return response
+
+
 _static_dir = Path(get_settings().static_dir)
 if _static_dir.is_dir():
-    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="static")
+    app.mount("/", SPAStaticFiles(directory=_static_dir, html=True), name="static")
