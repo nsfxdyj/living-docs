@@ -1,0 +1,22 @@
+# Render Blueprint: one-click deploy of Living Docs as a single web service.
+# The root Dockerfile builds the frontend and serves it from the backend.
+services:
+  - type: web
+    name: living-docs
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      # JWT signing key, generated once by Render on first deploy.
+      - key: LIVING_DOCS_SECRET_KEY
+        generateValue: true
+      # SQLite lives on the mounted disk (see below).
+      - key: LIVING_DOCS_DATABASE_URL
+        value: sqlite:////data/living_docs.db
+      # Uploaded attachments go on the same disk.
+      - key: LIVING_DOCS_ATTACHMENTS_DIR
+        value: /data/attachments
+    disk:
+      name: living-docs-data
+      mountPath: /data
+      sizeGB: 1

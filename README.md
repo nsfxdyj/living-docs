@@ -24,13 +24,14 @@ Existing knowledge bases treat documents as static files — written once, then 
 - Split-pane Markdown editor with live preview, syntax-highlighted code blocks (markdown-it + highlight.js), and DOMPurify-sanitized rendering
 - Image attachments: upload (png/jpg/gif/webp, ≤ 2 MB, magic-byte verified) and inline embedding in documents
 - Vitality hooks: views and edits record `Interaction` events and charge document vitality
+- One-level comments on documents (+5 vitality per comment); authors or workspace owners can delete
+- In-app notifications (comments, merge requests, merge decisions) with REST read markers and a live SSE stream
 - Single-container deployment: the backend serves the built frontend and the API
 
 **Roadmap** (see `PLAN.md` for the full milestone plan)
 
 - M4 — full vitality engine: daily decay job (APScheduler), status transitions, revive, garden home page
 - M5 — fork & merge with diff preview and evolution tree visualization
-- M6 — comments + SSE notifications, public demo
 
 ## Screenshots
 
@@ -46,6 +47,19 @@ docker compose up --build
 ```
 
 Then open http://localhost:8000 — the backend serves the built frontend and the API. The SQLite database is stored in the `living-docs-data` volume.
+
+## Deploy to Render
+
+The repo ships a [Render Blueprint](https://render.com/docs/blueprint-spec) (`render.yaml`), so a hosted demo is a few clicks:
+
+1. Push this repository to GitHub.
+2. In the Render dashboard: **New → Blueprint**, select the repo, apply.
+3. Render builds the root `Dockerfile`, generates `LIVING_DOCS_SECRET_KEY`, and mounts a 1 GB disk at `/data` holding both the SQLite database and uploaded attachments.
+
+Free-tier caveats:
+
+- **Cold starts** — free web services spin down after inactivity; the first request after idle can take ~30–60 s.
+- **Disk persistence** — Render disks on free services persist normally, but they are tied to the service; deleting the service deletes the data. Treat the demo as ephemeral (don't use the free tier for data you care about), and note that free PostgreSQL is *not* used here — everything lives on the `/data` disk.
 
 ## Local development
 
@@ -101,6 +115,13 @@ All endpoints except `/api/health`, `/api/auth/register` and `/api/auth/login` r
 | `DELETE` | `/api/documents/{id}` | Delete a document (author or workspace owner only) |
 | `POST` | `/api/documents/{id}/attachments` | Upload an image (multipart, png/jpg/gif/webp, ≤ 2 MB) |
 | `GET` | `/api/attachments/{filename}` | Download an attachment |
+| `POST` | `/api/documents/{id}/comments` | Comment on a document (≤ 2000 chars; records a `comment` interaction, +5 vitality; notifies the author) |
+| `GET` | `/api/documents/{id}/comments` | List a document's comments, oldest first |
+| `DELETE` | `/api/comments/{id}` | Delete a comment (author or workspace owner only) |
+| `GET` | `/api/notifications` | My notifications, newest first (max 50) |
+| `POST` | `/api/notifications/{id}/read` | Mark one notification as read |
+| `POST` | `/api/notifications/read-all` | Mark all my notifications as read |
+| `GET` | `/api/notifications/stream` | SSE live stream of new notifications (`text/event-stream`; accepts `?token=` because EventSource cannot send headers) |
 
 Interactive API docs (Swagger UI) are available at `/docs` when the backend is running.
 
@@ -110,6 +131,7 @@ Interactive API docs (Swagger UI) are available at `/docs` when the backend is r
 living-docs/
 ├── docker-compose.yml        # single-service deployment (app + data volume)
 ├── Dockerfile                # multi-stage: builds frontend, serves via backend
+├── render.yaml               # Render Blueprint (one-click hosted demo)
 ├── PLAN.md                   # product plan and milestone roadmap
 ├── backend/
 │   ├── app/
@@ -119,13 +141,14 @@ living-docs/
 │   │   ├── models/           # SQLAlchemy ORM models (users, docs, vitality…)
 │   │   ├── schemas.py        # Pydantic request/response schemas
 │   │   ├── security.py       # argon2 hashing + JWT helpers
-│   │   └── api/              # routers: auth, workspaces, documents,
-│   │                         #   attachments, health (+ shared deps)
+│   │   ├── notify.py         # notification persistence + in-process SSE fan-out
+│   │   └── api/              # routers: auth, workspaces, documents, evolution,
+│   │                         #   comments, notifications, attachments, health
 │   └── tests/                # pytest suite (TestClient, in-memory SQLite)
 └── frontend/
     └── src/
         ├── api/              # fetch wrapper (client.ts) + shared types
-        ├── stores/           # Pinia auth store
+        ├── stores/           # Pinia auth + notifications stores
         ├── router/           # Vue Router with auth guard
         ├── utils/markdown.ts # markdown-it + highlight.js + DOMPurify
         └── views/            # Home, Login, Register, Join, Workspace,
