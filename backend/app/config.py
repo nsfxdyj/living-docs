@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     attachments_dir: str = "data/attachments"
     # Maximum size of a single uploaded attachment.
     max_upload_bytes: int = 2 * 1024 * 1024  # 2 MB
+    # Life engine (M4): per-tick vitality multiplier and tick cadence.
+    decay_factor: float = 0.95
+    decay_interval_hours: float = 24.0
+    # Repeated views by the same user within this window do not re-charge.
+    view_throttle_minutes: int = 30
 
 
 @lru_cache

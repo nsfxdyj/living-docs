@@ -1,25 +1,23 @@
 """Document CRUD routes, with vitality bookkeeping hooks.
 
-Every view/edit records an Interaction row and charges the document's
-vitality; the full life engine (decay, status transitions) arrives in M4.
+Every view/edit charges the document's vitality through the M4 life
+engine (throttled views, status refresh/revive); decay runs in the
+background scheduler started in ``app.main``.
 """
 
 import json
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..life import record_interaction
 from ..models import Attachment, Document, Interaction, Membership, User
 from ..schemas import DocumentCreate, DocumentOut, DocumentUpdate
 from .deps import get_current_user
 
 router = APIRouter(tags=["documents"])
-
-# Energy charged per interaction kind (see PLAN.md section 4).
-INTERACTION_ENERGY = {"view": 1, "edit": 8}
 
 
 def require_membership(db: Session, workspace_id: int, user_id: int) -> Membership:
@@ -60,16 +58,6 @@ def document_out(document: Document) -> DocumentOut:
         last_interaction_at=document.last_interaction_at,
         created_at=document.created_at,
     )
-
-
-def record_interaction(db: Session, document: Document, user: User, kind: str) -> None:
-    """Charge the document's vitality for a user interaction."""
-    energy = INTERACTION_ENERGY[kind]
-    db.add(
-        Interaction(document_id=document.id, user_id=user.id, kind=kind, energy=energy)
-    )
-    document.vitality += energy
-    document.last_interaction_at = datetime.utcnow()
 
 
 @router.post(
@@ -130,7 +118,7 @@ def get_document(
 ) -> DocumentOut:
     document = get_accessible_document(db, document_id, user)
     # Reading counts as a view: charge vitality and bump last_interaction_at.
-    record_interaction(db, document, user, "view")
+    record_interaction(db, document, user.id, "view")
     db.commit()
     return document_out(document)
 
@@ -150,7 +138,7 @@ def update_document(
         document.content_md = payload.content_md
     if payload.tags is not None:
         document.tags = json.dumps(payload.tags)
-    record_interaction(db, document, user, "edit")
+    record_interaction(db, document, user.id, "edit")
     db.commit()
     return document_out(document)
 
