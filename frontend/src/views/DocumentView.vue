@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { api } from '../api/client'
 import type { Document, MergeRequest, TreeNode } from '../api/types'
+import CountUp from '../components/CountUp.vue'
+import { useReveal } from '../composables/useReveal'
 import { badgeStyle } from '../utils/life'
 import { renderMarkdown } from '../utils/markdown'
 
@@ -11,6 +13,10 @@ import { renderMarkdown } from '../utils/markdown'
 const route = useRoute()
 const router = useRouter()
 const documentId = Number(route.params.id)
+
+// Reveal-on-scroll root (document body fades in once loaded).
+const root = ref<HTMLElement | null>(null)
+useReveal(root)
 
 const doc = ref<Document | null>(null)
 const parentDoc = ref<Document | null>(null)
@@ -103,7 +109,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="doc-view">
+  <main ref="root" class="doc-view">
     <p v-if="loading">Loading…</p>
     <p v-else-if="error" class="error">{{ error }}</p>
     <template v-else-if="doc">
@@ -118,7 +124,9 @@ onMounted(async () => {
             <span class="badge" :style="badgeStyle(doc.status)">{{
               doc.status
             }}</span>
-            <span class="vitality">⚡ {{ Math.round(doc.vitality) }} vitality</span>
+            <span class="vitality">
+              ⚡ <CountUp :value="doc.vitality" /> vitality
+            </span>
             <span v-for="tag in doc.tags" :key="tag" class="tag">#{{ tag }}</span>
             <span class="updated">
               last interaction {{ formatDate(doc.last_interaction_at) }}
@@ -185,7 +193,7 @@ onMounted(async () => {
 
       <p v-if="error" class="error">{{ error }}</p>
 
-      <article class="content" v-html="renderedHtml"></article>
+      <article class="content reveal" v-html="renderedHtml"></article>
     </template>
   </main>
 </template>
@@ -288,6 +296,10 @@ onMounted(async () => {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  /* Life-status changes cross-fade instead of snapping. */
+  transition:
+    color 500ms var(--ease-out),
+    background-color 500ms var(--ease-out);
 }
 
 .tag {

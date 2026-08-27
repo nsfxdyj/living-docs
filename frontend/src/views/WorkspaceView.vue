@@ -4,11 +4,16 @@ import { useRoute } from 'vue-router'
 
 import { api } from '../api/client'
 import type { Document, WorkspaceDetail } from '../api/types'
+import { useReveal } from '../composables/useReveal'
 import { badgeStyle } from '../utils/life'
 
 // Workspace home: member list summary plus the searchable document list.
 const route = useRoute()
 const workspaceId = Number(route.params.id)
+
+// Scroll-reveal root (document cards stagger in once fetched).
+const root = ref<HTMLElement | null>(null)
+useReveal(root)
 
 const workspace = ref<WorkspaceDetail | null>(null)
 const documents = ref<Document[]>([])
@@ -54,7 +59,7 @@ function formatDate(iso: string): string {
 </script>
 
 <template>
-  <main class="workspace">
+  <main ref="root" class="workspace">
     <p v-if="loading">Loading…</p>
     <template v-else>
       <header class="topbar">
@@ -93,7 +98,12 @@ function formatDate(iso: string): string {
       </p>
 
       <ul class="doc-list">
-        <li v-for="doc in documents" :key="doc.id" class="doc-card">
+        <li
+          v-for="(doc, i) in documents"
+          :key="doc.id"
+          class="doc-card reveal"
+          :data-stagger="Math.min(i, 8)"
+        >
           <router-link :to="`/docs/${doc.id}`" class="doc-title">
             {{ doc.title }}
           </router-link>
@@ -216,6 +226,10 @@ function formatDate(iso: string): string {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  /* Life-status changes cross-fade instead of snapping. */
+  transition:
+    color 500ms var(--ease-out),
+    background-color 500ms var(--ease-out);
 }
 
 .tag {

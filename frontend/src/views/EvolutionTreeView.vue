@@ -78,12 +78,17 @@ const posById = computed(
 )
 
 // Direct parent→child edges only (MVP scope per PLAN.md).
+// `length` feeds the stroke-dashoffset draw-in animation.
 const edges = computed(() =>
   positioned.value
     .filter((p) => p.node.parent_id !== null && posById.value.has(p.node.parent_id))
     .map((p) => {
-      const parent = posById.value.get(p.node.parent_id as number)
-      return { from: parent as Positioned, to: p }
+      const parent = posById.value.get(p.node.parent_id as number) as Positioned
+      return {
+        from: parent,
+        to: p,
+        length: Math.hypot(p.x - parent.x, p.y - parent.y),
+      }
     }),
 )
 
@@ -143,17 +148,22 @@ onMounted(async () => {
         >
         <line
           v-for="(edge, i) in edges"
-          :key="`e-${i}`"
+          :key="`${edge.from.node.id}->${edge.to.node.id}`"
           :x1="edge.from.x"
           :y1="edge.from.y"
           :x2="edge.to.x"
           :y2="edge.to.y"
           class="edge"
+          :style="{
+            '--len': `${edge.length}px`,
+            animationDelay: `${i * 90}ms`,
+          }"
         />
         <g
-          v-for="p in positioned"
+          v-for="(p, i) in positioned"
           :key="p.node.id"
           class="node"
+          :style="{ animationDelay: `${150 + p.depth * 150 + i * 40}ms` }"
           @click="open(p.node)"
         >
           <title>
@@ -224,10 +234,35 @@ onMounted(async () => {
 .edge {
   stroke: #b9b9b9;
   stroke-width: 2;
+  /* Draw-in: the line is "painted" from parent to child on load. */
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: edge-draw var(--dur-slow) var(--ease-out) forwards;
+}
+
+@keyframes edge-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .node {
   cursor: pointer;
+  /* Pop-in with a soft overshoot, staggered by generation depth. */
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: node-pop var(--dur-med) var(--ease-pop) both;
+}
+
+@keyframes node-pop {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .label {
