@@ -43,3 +43,39 @@ body::before {
   position: relative;
   z-index: 1;
 }
+
+/* Herbarium ornaments: the same pressed-sprig line art pinned to the
+   bottom-left and top-right corners, like a collector's specimen sheet.
+   Pure decoration — fixed, faint, never interactive. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url('./botanical-sprig.svg'), url('./botanical-sprig.svg');
+  background-repeat: no-repeat, no-repeat;
+  background-position:
+    left -46px bottom -30px,
+    right -40px top -24px;
+  background-size: 190px auto, 160px auto;
+  opacity: 0.16;
+  mix-blend-mode: multiply;
+}
+
+@media (min-width: 1400px) {
+  body::after {
+    background-size: 230px auto, 200px auto;
+    background-position:
+      left -30px bottom -24px,
+      right -24px top -18px;
+  }
+}
+
+/* Tuck the ornaments away on small screens and for reduced motion
+   (static, but some users prefer a completely clean page). */
+@media (max-width: 720px), (prefers-reduced-motion: reduce) {
+  body::after {
+    display: none;
+  }
+}
