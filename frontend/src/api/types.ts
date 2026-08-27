@@ -84,3 +84,33 @@ export interface TreeNode {
   merged: boolean
   created_at: string
 }
+
+export interface DocComment {
+  id: number
+  document_id: number
+  author: User
+  body: string
+  created_at: string
+}
+
+export interface NotificationPayload {
+  document_id?: number
+  document_title?: string
+  comment_id?: number
+  merge_request_id?: number
+  source_doc_id?: number
+  source_title?: string
+  target_doc_id?: number
+  target_title?: string
+  actor_id?: number
+  actor_name?: string
+}
+
+export interface AppNotification {
+  id: number
+  workspace_id: number
+  kind: string // comment | merge_request | merge_accepted | merge_rejected
+  payload: NotificationPayload
+  read: boolean
+  created_at: string
+}

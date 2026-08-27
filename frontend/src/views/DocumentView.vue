@@ -3,15 +3,23 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api } from '../api/client'
-import type { Document, MergeRequest, TreeNode } from '../api/types'
+import type {
+  DocComment,
+  Document,
+  MergeRequest,
+  TreeNode,
+  WorkspaceDetail,
+} from '../api/types'
 import CountUp from '../components/CountUp.vue'
 import { useReveal } from '../composables/useReveal'
+import { useAuthStore } from '../stores/auth'
 import { badgeStyle } from '../utils/life'
 import { renderMarkdown } from '../utils/markdown'
 
 // Read-only rendered view of a single document.
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const documentId = Number(route.params.id)
 
 // Reveal-on-scroll root (document body fades in once loaded).
@@ -27,6 +35,13 @@ const proposing = ref(false)
 const showMergePanel = ref(false)
 const mergeTargets = ref<TreeNode[]>([])
 const mergeTargetId = ref<number | null>(null)
+
+// M6 comments: list, composer and delete permissions (author or workspace
+// owner — the role comes from the workspace detail).
+const comments = ref<DocComment[]>([])
+const newComment = ref('')
+const submittingComment = ref(false)
+const myRole = ref<string | null>(null)
 
 const renderedHtml = computed(() =>
   doc.value === null ? '' : renderMarkdown(doc.value.content_md),
@@ -100,12 +115,53 @@ onMounted(async () => {
         `/documents/${doc.value.parent_id}?track=false`,
       )
     }
+    const [commentList, workspace] = await Promise.all([
+      api<DocComment[]>(`/documents/${documentId}/comments`),
+      api<WorkspaceDetail>(`/workspaces/${doc.value.workspace_id}`),
+    ])
+    comments.value = commentList
+    myRole.value = workspace.role
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load document'
   } finally {
     loading.value = false
   }
 })
+
+function canDeleteComment(comment: DocComment): boolean {
+  return auth.user?.id === comment.author.id || myRole.value === 'owner'
+}
+
+async function submitComment() {
+  if (doc.value === null || newComment.value.trim() === '') return
+  error.value = ''
+  submittingComment.value = true
+  try {
+    const created = await api<DocComment>(`/documents/${doc.value.id}/comments`, {
+      method: 'POST',
+      body: { body: newComment.value.trim() },
+    })
+    comments.value.push(created)
+    newComment.value = ''
+    // The comment charged the document (+5): refresh vitality/status without
+    // recording another view.
+    doc.value = await api<Document>(`/documents/${doc.value.id}?track=false`)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to post comment'
+  } finally {
+    submittingComment.value = false
+  }
+}
+
+async function deleteComment(comment: DocComment) {
+  error.value = ''
+  try {
+    await api(`/comments/${comment.id}`, { method: 'DELETE' })
+    comments.value = comments.value.filter((c) => c.id !== comment.id)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to delete comment'
+  }
+}
 </script>
 
 <template>
@@ -194,6 +250,42 @@ onMounted(async () => {
       <p v-if="error" class="error">{{ error }}</p>
 
       <article class="content reveal" v-html="renderedHtml"></article>
+
+      <section class="comments reveal" data-stagger="1">
+        <h2>Comments ({{ comments.length }})</h2>
+        <p v-if="comments.length === 0" class="no-comments">
+          No comments yet — say something to charge this document (+5 vitality).
+        </p>
+        <ul v-else class="comment-list">
+          <li v-for="comment in comments" :key="comment.id" class="comment">
+            <div class="comment-head">
+              <span class="comment-author">{{ comment.author.display_name }}</span>
+              <span class="comment-time">{{ formatDate(comment.created_at) }}</span>
+              <button
+                v-if="canDeleteComment(comment)"
+                type="button"
+                class="comment-delete"
+                @click="deleteComment(comment)"
+              >
+                Delete
+              </button>
+            </div>
+            <p class="comment-body">{{ comment.body }}</p>
+          </li>
+        </ul>
+        <form class="comment-form" @submit.prevent="submitComment">
+          <textarea
+            v-model="newComment"
+            rows="3"
+            maxlength="2000"
+            placeholder="Write a comment…"
+            required
+          ></textarea>
+          <button type="submit" class="edit-btn" :disabled="submittingComment">
+            {{ submittingComment ? 'Posting…' : 'Post comment' }}
+          </button>
+        </form>
+      </section>
     </template>
   </main>
 </template>
@@ -324,5 +416,87 @@ onMounted(async () => {
 
 .error {
   color: #b00020;
+}
+
+.comments {
+  margin-top: 2.5rem;
+  border-top: 1px solid #e2e2e2;
+  padding-top: 1.25rem;
+}
+
+.comments h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+}
+
+.no-comments {
+  color: #777;
+  font-size: 0.9rem;
+}
+
+.comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.comment {
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+}
+
+.comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.comment-author {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.comment-time {
+  color: #999;
+  font-size: 0.78rem;
+}
+
+.comment-delete {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: #b00020;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0;
+}
+
+.comment-body {
+  margin: 0.35rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.comment-form textarea {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  font: inherit;
+  resize: vertical;
+}
+
+.comment-form .edit-btn {
+  align-self: flex-end;
 }
 </style>
