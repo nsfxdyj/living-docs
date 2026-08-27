@@ -8,6 +8,8 @@ import WorkspaceView from '../views/WorkspaceView.vue'
 import GardenView from '../views/GardenView.vue'
 import DocumentEditView from '../views/DocumentEditView.vue'
 import DocumentView from '../views/DocumentView.vue'
+import EvolutionTreeView from '../views/EvolutionTreeView.vue'
+import MergeRequestView from '../views/MergeRequestView.vue'
 import { getToken } from '../api/client'
 
 export const router = createRouter({
@@ -22,6 +24,8 @@ export const router = createRouter({
     { path: '/w/:id/docs/new', name: 'doc-new', component: DocumentEditView },
     { path: '/docs/:id', name: 'doc-view', component: DocumentView },
     { path: '/docs/:id/edit', name: 'doc-edit', component: DocumentEditView },
+    { path: '/docs/:id/tree', name: 'doc-tree', component: EvolutionTreeView },
+    { path: '/merge/:id', name: 'merge-request', component: MergeRequestView },
   ],
 })
 

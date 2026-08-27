@@ -63,3 +63,24 @@ export interface GardenEntry {
   last_interaction_at: string
   author: User
 }
+
+export interface MergeRequest {
+  id: number
+  source_doc_id: number
+  target_doc_id: number
+  proposer_id: number
+  status: string
+  created_at: string
+  decided_at: string | null
+}
+
+export interface TreeNode {
+  id: number
+  parent_id: number | null
+  title: string
+  author: User
+  vitality: number
+  status: string
+  merged: boolean
+  created_at: string
+}
