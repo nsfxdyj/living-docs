@@ -20,12 +20,14 @@ Existing knowledge bases treat documents as static files — written once, then 
 
 - Email/password registration and login (JWT, argon2 password hashing)
 - Workspaces with owner/member roles and shareable invite links (7-day expiry)
-- Document CRUD: Markdown content, tags, title search (`LIKE`), status and trunk/fork filtering
+- Document CRUD: Markdown content, tags, status and trunk/fork filtering
+- Full-text search over document titles and content (SQLite FTS5 with the trigram tokenizer, so CJK substrings like 「光合」 match 「光合作用」; queries shorter than 3 characters fall back to `LIKE`) with highlighted snippets; the index is updated transactionally on every write and rebuilt at startup if it drifts. If the SQLite build lacks FTS5, search returns `503` and document writes continue with indexing skipped
 - Split-pane Markdown editor with live preview, syntax-highlighted code blocks (markdown-it + highlight.js), and DOMPurify-sanitized rendering
 - Image attachments: upload (png/jpg/gif/webp, ≤ 2 MB, magic-byte verified) and inline embedding in documents
 - Vitality hooks: views and edits record `Interaction` events and charge document vitality
 - One-level comments on documents (+5 vitality per comment); authors or workspace owners can delete
-- In-app notifications (comments, merge requests, merge decisions) with REST read markers and a live SSE stream
+- `@display_name` mentions in comments notify the mentioned workspace members (exact name match with word boundaries, so `x@Jane` inside an email address does not count; display names may not contain `@` or control characters and are capped at 40 chars). MVP tradeoffs: if several members share the exact same display name, a mention of that name notifies **nobody** (ambiguity is never guessed); mentions are throttled to one notification per (actor, target, document) per 10 minutes; a mentioned author gets only the mention, not a duplicate comment notification; mentions in document edits are intentionally not notified
+- In-app notifications (comments, mentions, merge requests, merge decisions) with REST read markers and a live SSE stream
 - Single-container deployment: the backend serves the built frontend and the API
 
 **Roadmap** (see `PLAN.md` for the full milestone plan)
@@ -69,6 +71,7 @@ Free-tier caveats:
 
 - **Cold starts** — free web services spin down after inactivity; the first request after idle can take ~30–60 s.
 - **Ephemeral data** — free services cannot attach disks, so the SQLite database and uploaded attachments live on the container filesystem (`/tmp`) and **reset on every deploy or restart**. Fine for a public demo; for a persistent instance use a paid plan and add a disk mounted at `/data`, then point `LIVING_DOCS_DATABASE_URL` / `LIVING_DOCS_ATTACHMENTS_DIR` there.
+- **Single process by design** — notifications fan out through in-memory SSE queues and the FTS5 search index is rebuilt at process startup, so run exactly one worker. A multi-worker deployment would need a real notification broker and a shared/external search index.
 
 ## Local development
 
@@ -119,12 +122,13 @@ All endpoints except `/api/health`, `/api/auth/register` and `/api/auth/login` r
 | `POST` | `/api/workspaces/join` | Join a workspace via invite token |
 | `POST` | `/api/workspaces/{id}/documents` | Create a document (`title`, `content_md`, `tags`) |
 | `GET` | `/api/workspaces/{id}/documents` | List documents; `?q=` title search, `?status=` filter, `?parent=null` for trunk docs |
+| `GET` | `/api/workspaces/{id}/search` | Full-text search (FTS5 trigram, title + content; `?q=` ≤ 200 chars); returns up to 50 hits with highlighted snippets, merged documents excluded; `503` if FTS5 is unavailable |
 | `GET` | `/api/documents/{id}` | Document details (records a `view` interaction, +1 vitality) |
 | `PATCH` | `/api/documents/{id}` | Edit a document (any member; records an `edit` interaction, +8 vitality) |
 | `DELETE` | `/api/documents/{id}` | Delete a document (author or workspace owner only) |
 | `POST` | `/api/documents/{id}/attachments` | Upload an image (multipart, png/jpg/gif/webp, ≤ 2 MB) |
 | `GET` | `/api/attachments/{filename}` | Download an attachment |
-| `POST` | `/api/documents/{id}/comments` | Comment on a document (≤ 2000 chars; records a `comment` interaction, +5 vitality; notifies the author) |
+| `POST` | `/api/documents/{id}/comments` | Comment on a document (≤ 2000 chars; records a `comment` interaction, +5 vitality; notifies the author; `@display_name` mentions notify those members) |
 | `GET` | `/api/documents/{id}/comments` | List a document's comments, oldest first |
 | `DELETE` | `/api/comments/{id}` | Delete a comment (author or workspace owner only) |
 | `GET` | `/api/notifications` | My notifications, newest first (max 50) |
@@ -151,8 +155,10 @@ living-docs/
 │   │   ├── schemas.py        # Pydantic request/response schemas
 │   │   ├── security.py       # argon2 hashing + JWT helpers
 │   │   ├── notify.py         # notification persistence + in-process SSE fan-out
+│   │   ├── search.py         # FTS5 full-text index (sync, rebuild, queries)
 │   │   └── api/              # routers: auth, workspaces, documents, evolution,
-│   │                         #   comments, notifications, attachments, health
+│   │                         #   comments, notifications, attachments, search,
+│   │                         #   health
 │   └── tests/                # pytest suite (TestClient, in-memory SQLite)
 └── frontend/
     └── src/
