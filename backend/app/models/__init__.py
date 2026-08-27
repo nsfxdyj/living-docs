@@ -94,8 +94,9 @@ class MergeRequest(Base):
     source_doc_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
     target_doc_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
     proposer_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    status: Mapped[str] = mapped_column(default="open")  # open|accepted|rejected
+    status: Mapped[str] = mapped_column(default="open")  # open|accepted|rejected|orphaned
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
 
 class Comment(Base):

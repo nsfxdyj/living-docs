@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from . import models  # noqa: F401  (register ORM models on the metadata)
-from .api import attachments, auth, documents, health, workspaces
+from .api import attachments, auth, documents, evolution, health, workspaces
 from .config import get_settings
 from .db import Base, SessionLocal, engine
 from .life import run_decay
@@ -46,6 +46,7 @@ app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(workspaces.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
+app.include_router(evolution.router, prefix="/api")
 app.include_router(attachments.router, prefix="/api")
 
 # Serve the built frontend (Vite output) when it is available, e.g. in Docker.

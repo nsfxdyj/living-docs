@@ -100,3 +100,30 @@ class GardenEntry(BaseModel):
     tags: list[str]
     last_interaction_at: datetime
     author: UserOut
+
+
+class MergeRequestCreate(BaseModel):
+    target_doc_id: int
+
+
+class MergeRequestOut(BaseModel):
+    id: int
+    source_doc_id: int
+    target_doc_id: int
+    proposer_id: int
+    status: str
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class TreeNode(BaseModel):
+    """One node of a document's evolution tree (M5)."""
+
+    id: int
+    parent_id: int | None
+    title: str
+    author: UserOut
+    vitality: float
+    status: str
+    merged: bool
+    created_at: datetime
