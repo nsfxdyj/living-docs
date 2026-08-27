@@ -36,6 +36,9 @@ def status_for_vitality(vitality: float) -> str:
 
 def refresh_status(document: Document) -> str:
     """Recompute and store the document's status from its current vitality."""
+    if document.status == "merged":
+        # Merged forks (M5) stay merged; interactions/decay no longer revive them.
+        return document.status
     document.status = status_for_vitality(document.vitality)
     return document.status
 
@@ -66,8 +69,11 @@ def record_interaction(
 
     Returns True when energy was charged. Repeat views by the same user
     inside the throttle window are ignored (no Interaction row, no energy).
+    Merged documents (M5) are archived and can no longer be charged at all.
     Every charge refreshes the status, reviving withered documents.
     """
+    if document.status == "merged":
+        return False
     if kind == "view" and is_throttled_view(db, document, user_id):
         return False
     energy = INTERACTION_ENERGY[kind]

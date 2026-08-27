@@ -8,12 +8,12 @@ background scheduler started in ``app.main``.
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..life import record_interaction
-from ..models import Attachment, Document, Interaction, Membership, User
+from ..models import Attachment, Document, Interaction, Membership, MergeRequest, User
 from ..schemas import DocumentCreate, DocumentOut, DocumentUpdate
 from .deps import get_current_user
 
@@ -101,6 +101,9 @@ def list_documents(
         stmt = stmt.where(Document.title.like(f"%{q}%"))
     if doc_status:
         stmt = stmt.where(Document.status == doc_status)
+    else:
+        # Merged forks (M5) are archived: hidden from the default listing.
+        stmt = stmt.where(Document.status != "merged")
     if parent == "null":
         # Trunk documents only (forked variants have a parent).
         stmt = stmt.where(Document.parent_id.is_(None))
@@ -113,13 +116,16 @@ def list_documents(
 @router.get("/documents/{document_id}", response_model=DocumentOut)
 def get_document(
     document_id: int,
+    track: bool = Query(default=True),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> DocumentOut:
     document = get_accessible_document(db, document_id, user)
     # Reading counts as a view: charge vitality and bump last_interaction_at.
-    record_interaction(db, document, user.id, "view")
-    db.commit()
+    # Internal fetches (e.g. the merge-request page) pass track=false.
+    if track:
+        record_interaction(db, document, user.id, "view")
+        db.commit()
     return document_out(document)
 
 
@@ -156,6 +162,24 @@ def delete_document(
             status.HTTP_403_FORBIDDEN,
             detail="Only the author or the workspace owner can delete a document",
         )
+    # Cascade: open merge requests involving this document become orphaned,
+    # and forked children are detached (parent_id -> NULL) so their
+    # evolution trees stay valid.
+    open_mrs = db.scalars(
+        select(MergeRequest).where(
+            MergeRequest.status == "open",
+            or_(
+                MergeRequest.source_doc_id == document.id,
+                MergeRequest.target_doc_id == document.id,
+            ),
+        )
+    ).all()
+    for mr in open_mrs:
+        mr.status = "orphaned"
+    for child in db.scalars(
+        select(Document).where(Document.parent_id == document.id)
+    ).all():
+        child.parent_id = None
     for model in (Interaction, Attachment):
         for row in db.scalars(
             select(model).where(model.document_id == document.id)
