@@ -34,4 +34,9 @@ def _fresh_db() -> Iterator[None]:
     # fresh state (e.g. "first registered user") regardless of module order.
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    # The FTS5 virtual table is not part of Base.metadata; drop it too so no
+    # stale index rows leak across test modules. It is recreated lazily by
+    # app.search.ensure_fts_table on the next index/search call.
+    with engine.begin() as conn:
+        conn.exec_driver_sql("DROP TABLE IF EXISTS document_fts")
     yield
