@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..life import record_interaction
-from ..models import Attachment, Document, Interaction, Membership, MergeRequest, User
+from ..models import Attachment, Comment, Document, Interaction, Membership, MergeRequest, User
 from ..schemas import DocumentCreate, DocumentOut, DocumentUpdate
 from .deps import get_current_user
 
@@ -180,7 +180,7 @@ def delete_document(
         select(Document).where(Document.parent_id == document.id)
     ).all():
         child.parent_id = None
-    for model in (Interaction, Attachment):
+    for model in (Interaction, Attachment, Comment):
         for row in db.scalars(
             select(model).where(model.document_id == document.id)
         ).all():

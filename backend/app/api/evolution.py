@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..life import record_interaction, refresh_status, status_for_vitality
 from ..models import Document, Interaction, MergeRequest, User
+from ..notify import create_notification
 from ..schemas import (
     MergeRequestCreate,
     MergeRequestOut,
@@ -120,6 +121,28 @@ def _decide_merge_request(db: Session, mr_id: int, decision: str) -> None:
             status.HTTP_409_CONFLICT,
             detail="Merge request was already decided",
         )
+
+
+def _notify_merge_decision(
+    db: Session, mr: MergeRequest, target: Document, actor: User, kind: str
+) -> None:
+    """Tell the proposer their merge request was accepted/rejected (M6)."""
+    if mr.proposer_id == actor.id:
+        return
+    create_notification(
+        db,
+        user_id=mr.proposer_id,
+        workspace_id=target.workspace_id,
+        kind=kind,
+        payload={
+            "merge_request_id": mr.id,
+            "source_doc_id": mr.source_doc_id,
+            "target_doc_id": target.id,
+            "target_title": target.title,
+            "actor_id": actor.id,
+            "actor_name": actor.display_name,
+        },
+    )
 
 
 @router.post("/documents/{document_id}/fork", status_code=status.HTTP_201_CREATED)
@@ -226,6 +249,23 @@ def create_merge_request(
         source_doc_id=source.id, target_doc_id=target.id, proposer_id=user.id
     )
     db.add(mr)
+    db.flush()  # assign mr.id for the notification payload
+    if target.author_id != user.id:
+        create_notification(
+            db,
+            user_id=target.author_id,
+            workspace_id=target.workspace_id,
+            kind="merge_request",
+            payload={
+                "merge_request_id": mr.id,
+                "source_doc_id": source.id,
+                "source_title": source.title,
+                "target_doc_id": target.id,
+                "target_title": target.title,
+                "actor_id": user.id,
+                "actor_name": user.display_name,
+            },
+        )
     db.commit()
     return _merge_request_out(mr)
 
@@ -309,6 +349,7 @@ def accept_merge_request(
     source.status = MERGED_STATUS
     mr.status = "accepted"
     mr.decided_at = datetime.utcnow()
+    _notify_merge_decision(db, mr, target, user, "merge_accepted")
     db.commit()
     return _merge_request_out(mr)
 
@@ -329,6 +370,7 @@ def reject_merge_request(
     _decide_merge_request(db, mr_id, "rejected")
     mr.status = "rejected"
     mr.decided_at = datetime.utcnow()
+    _notify_merge_decision(db, mr, target, user, "merge_rejected")
     db.commit()
     return _merge_request_out(mr)
 
