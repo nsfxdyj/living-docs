@@ -1,0 +1,157 @@
+/* Apple-style motion system: shared tokens and primitives.
+ * Everything animates `transform` / `opacity` only (GPU composited), and
+ * every effect degrades to no animation under prefers-reduced-motion.
+ *
+ * Deliberate exemption: the evolution tree's edge draw-in animates
+ * `stroke-dashoffset` (EvolutionTreeView). It is a one-shot effect with no
+ * transform/opacity equivalent; it runs once on load and never on
+ * scroll/hover, so it cannot cause per-frame paint jank in steady state.
+ *
+ * The `.reveal` initial hidden state is gated behind `html.js` (the class
+ * is added in main.ts), so content stays visible when scripts do not run. */
+
+:root {
+  /* "Ease out with a soft settle" — the primary physical curve. */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Plain deceleration for exits and color transitions. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Slight overshoot for pop-in (nodes, badges). */
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --dur-fast: 250ms;
+  --dur-med: 450ms;
+  --dur-slow: 700ms;
+}
+
+/* Scroll-reveal base class: settle in from slightly below.
+ * `.revealed` is added once by the useReveal composable. */
+html.js .reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--dur-slow) var(--ease-spring),
+    transform var(--dur-slow) var(--ease-spring);
+}
+
+html.js .reveal.revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* Route change: fade + slight rise (see App.vue <Transition name="page">). */
+.page-enter-active {
+  transition:
+    opacity var(--dur-med) var(--ease-spring),
+    transform var(--dur-med) var(--ease-spring);
+}
+
+.page-leave-active {
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Auth card entrance (login/register): fade + rise. */
+.auth-card {
+  animation: card-in var(--dur-slow) var(--ease-spring) both;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Focus underline for form fields: a highlight line unfolds (scaleX)
+   under the focused input. Apply to the <label> wrapping the input. */
+.field {
+  position: relative;
+}
+
+.field::after {
+  content: '';
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: #2f8f4e;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 350ms var(--ease-spring);
+}
+
+.field:focus-within::after {
+  transform: scaleX(1);
+}
+
+/* Button hover lift. The shadow is pre-rendered on an ::after layer and
+   only its opacity is transitioned — box-shadow itself is never animated. */
+.btn-lift {
+  position: relative;
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.btn-lift::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+}
+
+.btn-lift:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.btn-lift:hover:not(:disabled)::after {
+  opacity: 1;
+}
+
+.btn-lift:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Accessibility: every motion effect collapses to an instant state change.
+ * Delays are zeroed too, so inline stagger delays cannot postpone the
+ * (already instant) transitions/animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  /* !important: must also override scoped per-view reveal variants such
+     as the garden's `.plant.reveal { transform: scaleY(0) }`. */
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .page-enter-from,
+  .page-leave-to {
+    opacity: 1;
+    transform: none;
+  }
+}
