@@ -40,6 +40,19 @@ class Membership(Base):
     role: Mapped[str] = mapped_column(default="member")  # owner | member
 
 
+class Invite(Base):
+    """A shareable workspace invite link. The token goes into the /join/<token> URL."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    token: Mapped[str] = mapped_column(unique=True, index=True)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    expires_at: Mapped[datetime]
+
+
 class Document(Base):
     """A living document. A non-null parent_id marks a forked variant."""
 
