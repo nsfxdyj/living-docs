@@ -6,6 +6,7 @@ import { api } from '../api/client'
 import type {
   DocComment,
   Document,
+  Member,
   MergeRequest,
   TreeNode,
   WorkspaceDetail,
@@ -42,6 +43,8 @@ const comments = ref<DocComment[]>([])
 const newComment = ref('')
 const submittingComment = ref(false)
 const myRole = ref<string | null>(null)
+// Workspace members, used to highlight @mentions in comment bodies.
+const members = ref<Member[]>([])
 
 const renderedHtml = computed(() =>
   doc.value === null ? '' : renderMarkdown(doc.value.content_md),
@@ -121,6 +124,7 @@ onMounted(async () => {
     ])
     comments.value = commentList
     myRole.value = workspace.role
+    members.value = workspace.members
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load document'
   } finally {
@@ -130,6 +134,43 @@ onMounted(async () => {
 
 function canDeleteComment(comment: DocComment): boolean {
   return auth.user?.id === comment.author.id || myRole.value === 'owner'
+}
+
+// Split a comment body into plain-text and @mention segments. Rendered as
+// DOM fragments (never v-html), so mention highlighting is XSS-safe.
+// Matches the backend rule: exact display_name, trailing non-word boundary.
+interface BodySegment {
+  text: string
+  mention: boolean
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function bodySegments(body: string): BodySegment[] {
+  const names = members.value
+    .map((m) => m.display_name)
+    .filter((name) => name.length > 0)
+    .sort((a, b) => b.length - a.length)
+  if (names.length === 0) return [{ text: body, mention: false }]
+  // Unicode-aware boundaries matching the backend's \w (letters/numbers/_
+  // in any script): a leading letter/digit/@ (e.g. an email address) or a
+  // trailing word character prevents a match.
+  const pattern = new RegExp(
+    `(?<![\\p{L}\\p{N}_@])@(?:${names.map(escapeRegExp).join('|')})(?![\\p{L}\\p{N}_])`,
+    'gu',
+  )
+  const segments: BodySegment[] = []
+  let last = 0
+  for (const match of body.matchAll(pattern)) {
+    const start = match.index
+    if (start > last) segments.push({ text: body.slice(last, start), mention: false })
+    segments.push({ text: match[0], mention: true })
+    last = start + match[0].length
+  }
+  if (last < body.length) segments.push({ text: body.slice(last), mention: false })
+  return segments
 }
 
 async function submitComment() {
@@ -270,7 +311,13 @@ async function deleteComment(comment: DocComment) {
                 Delete
               </button>
             </div>
-            <p class="comment-body">{{ comment.body }}</p>
+            <p class="comment-body">
+              <template
+                v-for="(segment, i) in bodySegments(comment.body)"
+                :key="i"
+              ><span v-if="segment.mention" class="mention">{{ segment.text }}</span
+              ><template v-else>{{ segment.text }}</template></template>
+            </p>
           </li>
         </ul>
         <form class="comment-form" @submit.prevent="submitComment">
@@ -479,6 +526,14 @@ async function deleteComment(comment: DocComment) {
   margin: 0.35rem 0 0;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.mention {
+  padding: 0 0.35em;
+  border-radius: 999px;
+  background: #e2f3e8;
+  color: #1d6f3c;
+  font-weight: 600;
 }
 
 .comment-form {

@@ -31,6 +31,8 @@ function describe(notification: AppNotification): string {
   switch (notification.kind) {
     case 'comment':
       return `${actor} commented on “${p.document_title ?? 'a document'}”`
+    case 'mention':
+      return `${actor} mentioned you in “${p.document_title ?? 'a document'}”`
     case 'merge_request':
       return `${actor} requested to merge “${p.source_title ?? ''}” into “${p.target_title ?? ''}”`
     case 'merge_accepted':
@@ -55,7 +57,10 @@ async function openNotification(notification: AppNotification) {
       // Non-fatal: navigation still proceeds.
     }
   }
-  if (notification.kind === 'comment' && notification.payload.document_id) {
+  if (
+    (notification.kind === 'comment' || notification.kind === 'mention') &&
+    notification.payload.document_id
+  ) {
     router.push(`/docs/${notification.payload.document_id}`)
   } else if (notification.payload.merge_request_id) {
     router.push(`/merge/${notification.payload.merge_request_id}`)

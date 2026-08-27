@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { api } from '../api/client'
-import type { Document, WorkspaceDetail } from '../api/types'
+import type { Document, SearchResult, WorkspaceDetail } from '../api/types'
 import { useReveal } from '../composables/useReveal'
 import { badgeStyle } from '../utils/life'
 
@@ -17,6 +17,8 @@ useReveal(root)
 
 const workspace = ref<WorkspaceDetail | null>(null)
 const documents = ref<Document[]>([])
+// null = browsing mode (document list); an array = full-text search results.
+const searchResults = ref<SearchResult[] | null>(null)
 const search = ref('')
 const statusFilter = ref('')
 const loading = ref(true)
@@ -26,16 +28,40 @@ const statusOptions = ['', 'thriving', 'stable', 'fading', 'withered']
 
 async function loadDocuments() {
   error.value = ''
-  const params = new URLSearchParams({ parent: 'null' })
-  if (search.value.trim()) params.set('q', search.value.trim())
-  if (statusFilter.value) params.set('status', statusFilter.value)
+  const q = search.value.trim()
   try {
+    if (q) {
+      // Full-text search (title + content, FTS5). The status filter only
+      // applies to browsing mode.
+      searchResults.value = await api<SearchResult[]>(
+        `/workspaces/${workspaceId}/search?${new URLSearchParams({ q })}`,
+      )
+      return
+    }
+    searchResults.value = null
+    const params = new URLSearchParams({ parent: 'null' })
+    if (statusFilter.value) params.set('status', statusFilter.value)
     documents.value = await api<Document[]>(
       `/workspaces/${workspaceId}/documents?${params}`,
     )
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load documents'
   }
+}
+
+// Turn a server snippet into safe HTML. The server marks matches with the
+// control characters \u0001/\u0002 (never literal <b>) and strips those
+// characters from indexed text, so document content cannot forge a
+// highlight: escape everything first, then map the markers to <b>/<\/b>.
+function snippetHtml(snippet: string): string {
+  const OPEN = '\u0001'
+  const CLOSE = '\u0002'
+  const escaped = snippet
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+  return escaped.split(OPEN).join('<b>').split(CLOSE).join('</b>')
 }
 
 onMounted(async () => {
@@ -83,9 +109,14 @@ function formatDate(iso: string): string {
         <input
           v-model="search"
           type="search"
-          placeholder="Search documents by title…"
+          placeholder="Search titles and content…"
         />
-        <select v-model="statusFilter" @change="loadDocuments">
+        <select
+          v-model="statusFilter"
+          :disabled="search.trim() !== ''"
+          title="Filter is available when browsing"
+          @change="loadDocuments"
+        >
           <option v-for="option in statusOptions" :key="option" :value="option">
             {{ option === '' ? 'All statuses' : option }}
           </option>
@@ -93,30 +124,56 @@ function formatDate(iso: string): string {
         <button type="submit">Search</button>
       </form>
 
-      <p v-if="!documents.length" class="empty">
-        No documents yet. Plant the first one! 🌱
-      </p>
+      <template v-if="searchResults !== null">
+        <p v-if="!searchResults.length" class="empty">No matches found.</p>
+        <ul v-else class="doc-list">
+          <li
+            v-for="(hit, i) in searchResults"
+            :key="hit.id"
+            class="doc-card reveal"
+            :data-stagger="Math.min(i, 8)"
+          >
+            <router-link :to="`/docs/${hit.id}`" class="doc-title">
+              {{ hit.title }}
+            </router-link>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p class="doc-snippet" v-html="snippetHtml(hit.snippet)"></p>
+            <div class="doc-meta">
+              <span class="badge" :style="badgeStyle(hit.status)">{{
+                hit.status
+              }}</span>
+              <span class="vitality">⚡ {{ Math.round(hit.vitality) }} vitality</span>
+            </div>
+          </li>
+        </ul>
+      </template>
 
-      <ul class="doc-list">
-        <li
-          v-for="(doc, i) in documents"
-          :key="doc.id"
-          class="doc-card reveal"
-          :data-stagger="Math.min(i, 8)"
-        >
-          <router-link :to="`/docs/${doc.id}`" class="doc-title">
-            {{ doc.title }}
-          </router-link>
-          <div class="doc-meta">
-            <span class="badge" :style="badgeStyle(doc.status)">{{
-              doc.status
-            }}</span>
-            <span class="vitality">⚡ {{ vitalityLabel(doc) }}</span>
-            <span v-for="tag in doc.tags" :key="tag" class="tag">#{{ tag }}</span>
-            <span class="updated">updated {{ formatDate(doc.last_interaction_at) }}</span>
-          </div>
-        </li>
-      </ul>
+      <template v-else>
+        <p v-if="!documents.length" class="empty">
+          No documents yet. Plant the first one! 🌱
+        </p>
+
+        <ul class="doc-list">
+          <li
+            v-for="(doc, i) in documents"
+            :key="doc.id"
+            class="doc-card reveal"
+            :data-stagger="Math.min(i, 8)"
+          >
+            <router-link :to="`/docs/${doc.id}`" class="doc-title">
+              {{ doc.title }}
+            </router-link>
+            <div class="doc-meta">
+              <span class="badge" :style="badgeStyle(doc.status)">{{
+                doc.status
+              }}</span>
+              <span class="vitality">⚡ {{ vitalityLabel(doc) }}</span>
+              <span v-for="tag in doc.tags" :key="tag" class="tag">#{{ tag }}</span>
+              <span class="updated">updated {{ formatDate(doc.last_interaction_at) }}</span>
+            </div>
+          </li>
+        </ul>
+      </template>
     </template>
   </main>
 </template>
@@ -208,6 +265,19 @@ function formatDate(iso: string): string {
 
 .doc-title:hover {
   text-decoration: underline;
+}
+
+.doc-snippet {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.doc-snippet :deep(b) {
+  color: #1d6f3c;
+  background: #e2f3e8;
+  border-radius: 3px;
+  padding: 0 0.15em;
 }
 
 .doc-meta {

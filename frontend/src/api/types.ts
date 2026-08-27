@@ -85,6 +85,15 @@ export interface TreeNode {
   created_at: string
 }
 
+export interface SearchResult {
+  id: number
+  title: string
+  snippet: string // contains <b> highlight markers around matches
+  vitality: number
+  status: string
+  rank: number
+}
+
 export interface DocComment {
   id: number
   document_id: number
@@ -109,7 +118,7 @@ export interface NotificationPayload {
 export interface AppNotification {
   id: number
   workspace_id: number
-  kind: string // comment | merge_request | merge_accepted | merge_rejected
+  kind: string // comment | mention | merge_request | merge_accepted | merge_rejected
   payload: NotificationPayload
   read: boolean
   created_at: string
