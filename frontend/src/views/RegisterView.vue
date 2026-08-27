@@ -28,18 +28,18 @@ async function onSubmit() {
 </script>
 
 <template>
-  <main class="register">
+  <main class="register auth-card">
     <h1>Create your account</h1>
     <form @submit.prevent="onSubmit">
-      <label>
+      <label class="field">
         Display name
         <input v-model="displayName" type="text" name="display_name" required />
       </label>
-      <label>
+      <label class="field">
         Email
         <input v-model="email" type="email" name="email" required />
       </label>
-      <label>
+      <label class="field">
         Password (min. 8 characters)
         <input
           v-model="password"
@@ -50,7 +50,7 @@ async function onSubmit() {
         />
       </label>
       <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" :disabled="busy">
+      <button type="submit" class="btn-lift" :disabled="busy">
         {{ busy ? 'Creating account…' : 'Register' }}
       </button>
     </form>
@@ -61,6 +61,8 @@ async function onSubmit() {
 </template>
 
 <style scoped>
+/* Entrance (.auth-card), focus underline (.field) and button lift
+ * (.btn-lift) are shared classes from assets/motion.css. */
 .register {
   max-width: 20rem;
   margin: 4rem auto;

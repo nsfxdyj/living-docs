@@ -29,19 +29,19 @@ async function onSubmit() {
 </script>
 
 <template>
-  <main class="login">
+  <main class="login auth-card">
     <h1>Log in to Living Docs</h1>
     <form @submit.prevent="onSubmit">
-      <label>
+      <label class="field">
         Email
         <input v-model="email" type="email" name="email" required />
       </label>
-      <label>
+      <label class="field">
         Password
         <input v-model="password" type="password" name="password" required />
       </label>
       <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" :disabled="busy">{{ busy ? 'Logging in…' : 'Log in' }}</button>
+      <button type="submit" class="btn-lift" :disabled="busy">{{ busy ? 'Logging in…' : 'Log in' }}</button>
     </form>
     <p class="hint">
       No account yet? <router-link to="/register">Register</router-link>
@@ -50,6 +50,8 @@ async function onSubmit() {
 </template>
 
 <style scoped>
+/* Entrance (.auth-card), focus underline (.field) and button lift
+ * (.btn-lift) are shared classes from assets/motion.css. */
 .login {
   max-width: 20rem;
   margin: 4rem auto;

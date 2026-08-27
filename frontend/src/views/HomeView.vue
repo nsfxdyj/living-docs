@@ -4,10 +4,15 @@ import { useRouter } from 'vue-router'
 
 import { api } from '../api/client'
 import type { Invite, Workspace, WorkspaceDetail } from '../api/types'
+import { useReveal } from '../composables/useReveal'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 const router = useRouter()
+
+// Scroll-reveal root for the panels below.
+const root = ref<HTMLElement | null>(null)
+useReveal(root)
 
 const workspaces = ref<Workspace[]>([])
 const selected = ref<WorkspaceDetail | null>(null)
@@ -81,7 +86,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="home">
+  <main ref="root" class="home">
     <header class="topbar">
       <h1>Living Docs Garden 🌱</h1>
       <div v-if="auth.user" class="account">
@@ -92,7 +97,7 @@ onMounted(async () => {
 
     <p v-if="error" class="error">{{ error }}</p>
 
-    <section class="panel">
+    <section class="panel reveal">
       <h2>My workspaces</h2>
       <ul v-if="workspaces.length" class="workspace-list">
         <li v-for="ws in workspaces" :key="ws.id">
@@ -121,7 +126,7 @@ onMounted(async () => {
       </form>
     </section>
 
-    <section v-if="selected" class="panel">
+    <section v-if="selected" class="panel reveal" data-stagger="1">
       <h2>{{ selected.name }}</h2>
       <h3>Members</h3>
       <ul>
@@ -214,6 +219,37 @@ onMounted(async () => {
 button {
   padding: 0.4rem 0.8rem;
   cursor: pointer;
+}
+
+/* Hover lift for real buttons (not the underline-styled .link buttons).
+ * The shadow is pre-rendered on ::after and only its opacity is
+ * transitioned — box-shadow itself is never animated. */
+button:not(.link) {
+  position: relative;
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+button:not(.link)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+}
+
+button:not(.link):hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+button:not(.link):hover:not(:disabled)::after {
+  opacity: 1;
+}
+
+button:not(.link):active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .error {
