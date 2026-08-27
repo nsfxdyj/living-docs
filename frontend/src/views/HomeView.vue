@@ -105,6 +105,7 @@ onMounted(async () => {
             {{ ws.name }}
           </button>
           <span class="role">{{ ws.role }}</span>
+          <router-link :to="`/w/${ws.id}`" class="open">Open documents →</router-link>
         </li>
       </ul>
       <p v-else>You have not joined any workspace yet.</p>
@@ -189,6 +190,11 @@ onMounted(async () => {
 .role {
   margin-left: 0.5rem;
   color: #777;
+  font-size: 0.85rem;
+}
+
+.open {
+  margin-left: 0.75rem;
   font-size: 0.85rem;
 }
 
