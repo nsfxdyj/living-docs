@@ -1,5 +1,6 @@
 """Workspace routes: creation, listing, details, invite links and joining."""
 
+import json
 import re
 from datetime import datetime, timedelta
 
@@ -8,11 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Invite, Membership, User, Workspace
+from ..models import Document, Invite, Membership, User, Workspace
 from ..schemas import (
+    GardenEntry,
     InviteOut,
     JoinRequest,
     MemberOut,
+    UserOut,
     WorkspaceCreate,
     WorkspaceDetail,
     WorkspaceOut,
@@ -124,6 +127,39 @@ def get_workspace(
             for member, role in rows
         ],
     )
+
+
+@router.get("/{workspace_id}/garden", response_model=list[GardenEntry])
+def get_garden(
+    workspace_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[GardenEntry]:
+    """Garden data: all trunk documents, most alive first (M4)."""
+    if _get_membership(db, workspace_id, user.id) is None:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="Not a member of this workspace"
+        )
+    rows = db.execute(
+        select(Document, User)
+        .join(User, User.id == Document.author_id)
+        .where(Document.workspace_id == workspace_id, Document.parent_id.is_(None))
+        .order_by(Document.vitality.desc(), Document.id)
+    ).all()
+    return [
+        GardenEntry(
+            id=document.id,
+            title=document.title,
+            vitality=document.vitality,
+            status=document.status,
+            tags=json.loads(document.tags),
+            last_interaction_at=document.last_interaction_at,
+            author=UserOut(
+                id=author.id, email=author.email, display_name=author.display_name
+            ),
+        )
+        for document, author in rows
+    ]
 
 
 @router.post(

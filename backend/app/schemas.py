@@ -88,3 +88,15 @@ class DocumentOut(BaseModel):
 
 class AttachmentOut(BaseModel):
     url: str
+
+
+class GardenEntry(BaseModel):
+    """One plant in the workspace garden (a trunk document)."""
+
+    id: int
+    title: str
+    vitality: float
+    status: str
+    tags: list[str]
+    last_interaction_at: datetime
+    author: UserOut
