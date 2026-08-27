@@ -1,12 +1,30 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
-// M1: static UI only — real authentication arrives in milestone M2.
+import { useAuthStore } from '../stores/auth'
+
+const auth = useAuthStore()
+const router = useRouter()
+const route = useRoute()
+
 const email = ref('')
 const password = ref('')
+const error = ref('')
+const busy = ref(false)
 
-function onSubmit() {
-  console.log('login submit (stub):', { email: email.value })
+async function onSubmit() {
+  error.value = ''
+  busy.value = true
+  try {
+    await auth.login(email.value, password.value)
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    router.push(redirect)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Login failed'
+  } finally {
+    busy.value = false
+  }
 }
 </script>
 
@@ -22,8 +40,12 @@ function onSubmit() {
         Password
         <input v-model="password" type="password" name="password" required />
       </label>
-      <button type="submit">Log in</button>
+      <p v-if="error" class="error">{{ error }}</p>
+      <button type="submit" :disabled="busy">{{ busy ? 'Logging in…' : 'Log in' }}</button>
     </form>
+    <p class="hint">
+      No account yet? <router-link to="/register">Register</router-link>
+    </p>
   </main>
 </template>
 
@@ -42,5 +64,25 @@ form {
 label {
   display: grid;
   gap: 0.25rem;
+}
+
+input {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+}
+
+button {
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+.error {
+  color: #b00020;
+  margin: 0;
+}
+
+.hint {
+  margin-top: 1rem;
 }
 </style>
