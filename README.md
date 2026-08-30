@@ -9,6 +9,15 @@
 
 Existing knowledge bases treat documents as static files — written once, then left to rot. **Living Docs** turns every document into a living organism whose health reflects how much your team actually cares about it.
 
+## Who this is for
+
+Small teams (roughly 3–30 people) whose knowledge lives in chat threads
+and abandoned wikis, and who want something self-hosted they can
+actually run: one container, one SQLite file, no external services. The
+life system makes stale knowledge visible instead of letting it rot
+quietly, and fork & merge gives competing versions of a process document
+a way to settle themselves.
+
 ## Core concepts
 
 - **Life System** — every document has a `vitality` score charged by interactions (view = +1, comment = +5, edit = +8, fork = +10) and decayed daily. Documents move through `thriving → stable → fading → withered`; withered documents sink to the bottom and fade to grey, and can be revived by fresh interaction. The team home page is a *document garden* that shows at a glance which knowledge is alive and which is dead.
@@ -182,6 +191,12 @@ The suite runs against an in-memory SQLite database and a temporary attachments 
 ## Contributing
 
 Contributions are welcome! Please open an issue to discuss larger changes first, keep PRs focused on a single concern, and make sure `python -m pytest` (backend) and `npm run build` (frontend) pass. A formal `CONTRIBUTING.md` will be added in a later milestone.
+
+## Custom deployment
+
+Need a private deployment, SSO/LDAP integration, a different storage
+backend, or features tuned to your team's workflow? I take on custom
+development and private-deployment support: nsfxdyj@gmail.com
 
 ## License
 
