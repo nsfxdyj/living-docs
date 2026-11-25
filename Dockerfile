@@ -17,7 +17,8 @@ COPY backend/app ./app
 COPY --from=frontend /build/dist ./static
 
 ENV LIVING_DOCS_STATIC_DIR=/app/static \
-    LIVING_DOCS_DATABASE_URL=sqlite:////data/living_docs.db
+    LIVING_DOCS_DATABASE_URL=sqlite:////data/living_docs.db \
+    LIVING_DOCS_ATTACHMENTS_DIR=/data/attachments
 
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

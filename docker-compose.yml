@@ -4,7 +4,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Persist the SQLite database file across container restarts.
+      # Persist both the SQLite database and uploaded attachments.
       - living-docs-data:/data
 
 volumes:
