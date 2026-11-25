@@ -41,7 +41,7 @@ jobs:
       IMAGE: living-docs:ci
       CONTAINER: living-docs-ci-${{ github.run_id }}-${{ github.run_attempt }}
       VOLUME: living-docs-ci-${{ github.run_id }}-${{ github.run_attempt }}
-      STATE: ${{ runner.temp }}/living-docs-container-smoke.json
+      STATE: /tmp/living-docs-container-smoke-${{ github.run_id }}-${{ github.run_attempt }}.json
     steps:
       - uses: actions/checkout@v4
       - name: Build image
