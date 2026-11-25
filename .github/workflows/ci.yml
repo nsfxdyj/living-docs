@@ -34,3 +34,42 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
+
+  container:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: living-docs:ci
+      CONTAINER: living-docs-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      VOLUME: living-docs-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      STATE: /tmp/living-docs-container-smoke-${{ github.run_id }}-${{ github.run_attempt }}.json
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build --tag "$IMAGE" .
+      - name: Create database and attachment
+        run: |
+          docker run -d --name "$CONTAINER" \
+            --publish 127.0.0.1:8000:8000 \
+            --volume "$VOLUME:/data" \
+            --env LIVING_DOCS_SECRET_KEY=ci-only-container-smoke-secret \
+            "$IMAGE"
+          python scripts/container_smoke.py write --state-file "$STATE"
+      - name: Recreate container without removing its volume
+        run: |
+          docker rm -f "$CONTAINER"
+          docker run -d --name "$CONTAINER" \
+            --publish 127.0.0.1:8000:8000 \
+            --volume "$VOLUME:/data" \
+            --env LIVING_DOCS_SECRET_KEY=ci-only-container-smoke-secret \
+            "$IMAGE"
+      - name: Verify database and attachment after recreation
+        run: python scripts/container_smoke.py verify --state-file "$STATE"
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs "$CONTAINER"
+      - name: Clean up smoke resources
+        if: always()
+        run: |
+          docker rm -f "$CONTAINER" 2>/dev/null || true
+          docker volume rm "$VOLUME" 2>/dev/null || true
+          rm -f "$STATE"
